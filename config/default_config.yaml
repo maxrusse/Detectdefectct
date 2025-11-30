@@ -1,0 +1,25 @@
+# Default Configuration for CT Jaw Defect Segmentation
+# Optimized for NVIDIA RTX A6000 (48GB VRAM)
+
+# Model Configuration
+model_name: "swin"  # Options: swin, segresnet, unet
+n_classes: 3        # Background, Bone, Tumor
+
+# Hardware Optimization (A6000 Specific)
+roi_size: [128, 128, 128]  # Massive 3D context window
+batch_size: 4              # Optimized for Transformer gradients
+workers: 8                 # CPU workers for data loading
+
+# Training Hyperparameters
+lr: 0.0001                 # Learning rate
+weight_decay: 0.00001      # AdamW regularization
+max_epochs: 300
+val_interval: 5            # Validate every N epochs
+save_interval: 50          # Save checkpoint every N epochs
+
+# Data Preprocessing (Physics-Based)
+spacing: [0.4, 0.4, 0.4]   # High-resolution isotropic voxels (mm)
+hu_range: [-150, 2000]     # HU window: soft-tissue tumor + bone
+
+# Output
+output_dir: "./results"

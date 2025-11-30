@@ -1,0 +1,28 @@
+{
+  "train": [
+    {
+      "ct": "/path/to/case001/ct.nii.gz",
+      "mask": "/path/to/case001/bone.nii.gz",
+      "mask1": "/path/to/case001/tumor.nii.gz"
+    },
+    {
+      "ct": "/path/to/case002/ct.nii.gz",
+      "mask": "/path/to/case002/bone.nii.gz",
+      "mask1": "/path/to/case002/tumor.nii.gz"
+    }
+  ],
+  "valid": [
+    {
+      "ct": "/path/to/case003/ct.nii.gz",
+      "mask": "/path/to/case003/bone.nii.gz",
+      "mask1": "/path/to/case003/tumor.nii.gz"
+    }
+  ],
+  "test": [
+    {
+      "ct": "/path/to/case004/ct.nii.gz",
+      "mask": "/path/to/case004/bone.nii.gz",
+      "mask1": "/path/to/case004/tumor.nii.gz"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+# A6000-Optimized Configuration
+# Maximum performance settings for 48GB VRAM
+
+# Model Configuration
+model_name: "swin"  # SwinUNETR for best global context
+n_classes: 3
+
+# Hardware Optimization (Push A6000 to limits)
+roi_size: [128, 128, 128]  # Maximum stable patch size
+batch_size: 4              # Maximum stable batch for SwinUNETR
+workers: 12                # Increase for fast I/O
+
+# Training Hyperparameters
+lr: 0.0001
+weight_decay: 0.00001
+max_epochs: 500            # Extended training for convergence
+val_interval: 5
+save_interval: 25
+
+# Data Preprocessing
+spacing: [0.4, 0.4, 0.4]   # High-res for tumor detection
+hu_range: [-150, 2000]     # Critical for lytic tumors
+
+# Output
+output_dir: "./results_a6000"
