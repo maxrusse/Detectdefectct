@@ -35,11 +35,45 @@ This system segments **osseous defects** (bone tumors) in CT scans of the jaw (m
 - **OS**: Linux (Ubuntu 20.04/22.04 recommended)
 - **Hardware**: NVIDIA RTX A6000 (48GB) or similar high-VRAM GPU
 - **Software**:
-  - Python 3.9+
+  - Python 3.9+ (3.10 recommended)
   - CUDA 11.8 or 12.x
   - cuDNN
+  - Conda or Miniconda (recommended)
 
-### Quick Install
+### Method 1: Conda Installation (Recommended)
+
+**Automatic Setup:**
+```bash
+# Clone repository
+git clone https://github.com/maxrusse/Detectdefectct.git
+cd Detectdefectct
+
+# Run automated setup script
+chmod +x setup_conda.sh
+./setup_conda.sh
+
+# Activate environment
+conda activate jaw-segmentation
+```
+
+**Manual Setup:**
+```bash
+# Clone repository
+git clone https://github.com/maxrusse/Detectdefectct.git
+cd Detectdefectct
+
+# Create conda environment
+# For CUDA 11.8:
+conda env create -f environment.yml
+
+# For CUDA 12.x:
+conda env create -f environment_cuda12.yml
+
+# Activate environment
+conda activate jaw-segmentation
+```
+
+### Method 2: Pip Installation (Alternative)
 
 ```bash
 # Clone repository
@@ -60,11 +94,36 @@ pip install -e .
 pip install -r requirements.txt
 ```
 
+### Method 3: Conda + Pip (Hybrid)
+
+```bash
+# Create base conda environment
+conda create -n jaw-segmentation python=3.10
+conda activate jaw-segmentation
+
+# Install PyTorch with conda
+conda install pytorch torchvision pytorch-cuda=11.8 -c pytorch -c nvidia
+
+# Install remaining packages with pip
+pip install -r requirements.txt
+```
+
 ### Verify Installation
 
 ```bash
+# Activate environment (if using conda)
+conda activate jaw-segmentation
+
+# Check PyTorch and CUDA
+python -c "import torch; print(f'PyTorch Version: {torch.__version__}')"
 python -c "import torch; print(f'CUDA Available: {torch.cuda.is_available()}')"
+python -c "import torch; print(f'CUDA Version: {torch.version.cuda}')"
+
+# Check MONAI
 python -c "import monai; print(f'MONAI Version: {monai.__version__}')"
+
+# Check GPU
+python -c "import torch; print(f'GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"None\"}')"
 ```
 
 ---

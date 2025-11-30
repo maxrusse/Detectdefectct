@@ -1,0 +1,36 @@
+name: jaw-segmentation
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+
+dependencies:
+  # Python
+  - python=3.10
+
+  # CUDA and PyTorch
+  # For CUDA 12.1
+  - pytorch>=2.0.0
+  - torchvision>=0.15.0
+  - pytorch-cuda=12.1
+
+  # Scientific Computing
+  - numpy>=1.24.0
+  - scipy>=1.10.0
+
+  # Utilities
+  - pyyaml>=6.0
+  - tqdm>=4.65.0
+
+  # Development Tools (optional)
+  - pytest>=7.0.0
+  - jupyter
+  - ipython
+
+  # Pip packages (MONAI and medical imaging)
+  - pip
+  - pip:
+    - monai[all]>=1.3.0
+    - nibabel>=5.0.0
+    - matplotlib>=3.7.0
