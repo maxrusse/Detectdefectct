@@ -134,19 +134,42 @@ This system supports **two data input methods**:
 
 ### Option 1: Custom Nested JSON (For Existing Data Structures)
 
-If you have a **nested JSON structure** with STag-based splits (`Tx`/`Ty`/`Tz`), use our custom parser:
+If you have a **nested JSON structure** or a **Python dict** with STag-based splits, use our custom parser.
+
+#### Step 1: Save Your Dict as JSON (if needed)
+
+If you have a Python dict (e.g., `inputs["json"]`), save it first:
+
+```python
+import json
+
+# Your dict from wherever you got it
+data = inputs["json"]
+
+# Save as JSON
+with open("my_data.json", "w") as f:
+    json.dump({"json": data}, f, indent=2)
+```
+
+#### Step 2: Parse the JSON
 
 ```bash
 python scripts/parse_nested_json.py \
-    --input your_nested_data.json \
+    --input my_data.json \
     --output data_config.json
 ```
 
 This handles complex nested structures and automatically:
 - Flattens nested JSON hierarchy
 - Groups files by patient/study/case
-- Splits data based on STag values (`Tx`→train, `Ty`→valid, `Tz`→test)
+- Splits data based on STag values (`Tx`/`train`→train, `Ty`/`valid`→valid, `Tz`/`test`→test)
+- **Prevents data leaks** with priority hierarchy: `test > valid > train`
 - Creates pipeline-compatible configuration
+
+**Supported STag formats:**
+- Classic: `Tx`, `Ty`, `Tz`
+- Word-based: `train`, `valid`, `test`
+- Mixed: `/Pat_6/completed/train/T1/Tx/` (extracts "train")
 
 **📖 Full guide:** See [docs/CUSTOM_DATA_LOADING.md](docs/CUSTOM_DATA_LOADING.md)
 

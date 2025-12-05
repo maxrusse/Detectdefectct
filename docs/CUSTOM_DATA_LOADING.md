@@ -1,6 +1,41 @@
 # Custom Data Loading Guide
 
-This guide explains how to load data from your nested JSON structure with STag-based splitting.
+This guide explains how to load data from your nested JSON structure or Python dict with STag-based splitting.
+
+---
+
+## Starting with a Python Dict
+
+If you have a Python dict (e.g., `inputs["json"]`), **save it as JSON first:**
+
+```python
+import json
+
+# Your dict from your data source
+data = inputs["json"]
+
+# Save as JSON file
+with open("my_data.json", "w") as f:
+    json.dump({"json": data}, f, indent=2)
+
+print("✓ Saved to my_data.json")
+```
+
+**Why wrap in `{"json": data}`?**
+
+The parser expects a top-level `"json"` key, so we wrap your data:
+
+```python
+# If your dict is already wrapped:
+data = inputs  # already has inputs["json"]
+with open("my_data.json", "w") as f:
+    json.dump(data, f, indent=2)
+
+# If your dict is just the nested list:
+data = inputs["json"]  # the nested list itself
+with open("my_data.json", "w") as f:
+    json.dump({"json": data}, f, indent=2)  # wrap it
+```
 
 ---
 
@@ -9,10 +44,12 @@ This guide explains how to load data from your nested JSON structure with STag-b
 Your data has a nested JSON format where:
 
 - **Files are grouped by study/patient**
-- **Split is determined by STag field:**
-  - `Tx` → Training set
-  - `Ty` → Validation set
-  - `Tz` → Test set
+- **Split is determined by STag field with priority:**
+  - `test` keywords (Tz, test) → **Test set** (highest priority)
+  - `valid` keywords (Ty, valid, val) → **Validation set** (medium priority)
+  - `train` keywords (Tx, train) → **Training set** (lowest priority)
+
+- **Priority prevents data leaks:** If a case has multiple tags (e.g., both "train" and "test"), it goes to test
 
 - **Each case has 3 files:**
   - `base.nii` → CT scan
@@ -161,27 +198,76 @@ label[tumor_data > 0] = 2  # Tumor (overwrites bone)
 
 ---
 
-## STag Splitting Logic
+## STag Splitting Logic with Data Leak Prevention
 
-The parser automatically assigns splits based on STag:
+The parser automatically assigns splits based on STag **with priority hierarchy**:
+
+### Priority Order (Highest to Lowest)
+
+```
+test > valid > train
+```
+
+**Why?** If a case has multiple tags (e.g., both "train" and "test" in the STag path), it goes to **test** to prevent data leakage into training.
+
+### Matching Logic
 
 ```python
 def split_from_stag(stag):
-    if "Tx" in stag:  return "train"
-    if "Ty" in stag:  return "valid"
-    if "Tz" in stag:  return "test"
+    stag_lower = stag.lower()
+
+    # Priority 1: Test (highest)
+    if any(marker in stag_lower for marker in ["tz", "test"]):
+        return "test"
+
+    # Priority 2: Valid
+    if any(marker in stag_lower for marker in ["ty", "valid", "val"]):
+        return "valid"
+
+    # Priority 3: Train (lowest)
+    if any(marker in stag_lower for marker in ["tx", "train"]):
+        return "train"
 ```
 
-**Examples:**
+### Supported STag Formats
 
-| STag Value | Split | Usage |
-|------------|-------|-------|
-| `Tx` | train | Training data |
-| `Tx_001` | train | Also training |
-| `Ty` | valid | Validation data |
-| `Ty_subset` | valid | Also validation |
-| `Tz` | test | Test data |
-| `Tz_final` | test | Also test |
+| STag Value | Detected Keywords | Final Split | Reason |
+|------------|------------------|-------------|---------|
+| `Tx` | tx | **train** | Classic format |
+| `train` | train | **train** | Word format |
+| `/Pat_6/completed/train/T1/` | train | **train** | Extracted from path |
+| `Ty_subset` | ty | **valid** | Classic with suffix |
+| `valid_cases` | valid | **valid** | Word format |
+| `validation` | val | **valid** | Abbreviated |
+| `Tz` | tz | **test** | Classic format |
+| `test_final` | test | **test** | Word format |
+| `/train/test/Tx/` | **test**, train, tx | **test** | Test has priority! |
+| `train+valid` | train, valid | **valid** | Valid > train |
+
+### Data Leak Prevention Examples
+
+**Case 1: Mixed tags**
+```
+STag: "/completed/train/validation/Tx/"
+Contains: train, valid, tx
+Result: valid (valid > train)
+```
+
+**Case 2: All three tags**
+```
+STag: "/train/valid/test/"
+Contains: train, valid, test
+Result: test (test has highest priority)
+```
+
+**Case 3: Ambiguous path**
+```
+STag: "/experimental/train_and_test/data/"
+Contains: train, test
+Result: test (test > train)
+```
+
+This ensures **conservative splitting** - when in doubt, the sample goes to the more "protected" set (test > valid > train).
 
 ---
 

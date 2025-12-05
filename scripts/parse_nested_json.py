@@ -12,22 +12,38 @@ from pathlib import Path
 
 def split_from_stag(stag):
     """
-    Determine split from STag field.
+    Determine split from STag field with priority to prevent data leaks.
+
+    Priority hierarchy (highest to lowest):
+        test > valid > train
+
+    This ensures that if a case has multiple tags (e.g., both "train" and "test"),
+    it goes to test to prevent data leakage.
 
     Args:
-        stag: STag string (e.g., "Tx", "Ty", "Tz")
+        stag: STag string (e.g., "Tx", "Ty", "Tz", "train", "valid", "test")
 
     Returns:
         "train", "valid", "test", or None
     """
     if not stag:
         return None
-    if "Tx" in stag:
-        return "train"
-    if "Ty" in stag:
-        return "valid"
-    if "Tz" in stag:
+
+    stag_lower = stag.lower()
+
+    # Priority order: test > valid > train (to avoid data leaks)
+    # Check for test first (highest priority)
+    if any(marker in stag_lower for marker in ["tz", "test"]):
         return "test"
+
+    # Then check for valid
+    if any(marker in stag_lower for marker in ["ty", "valid", "val"]):
+        return "valid"
+
+    # Finally check for train
+    if any(marker in stag_lower for marker in ["tx", "train"]):
+        return "train"
+
     return None
 
 
