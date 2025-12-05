@@ -46,12 +46,11 @@ def get_default_config():
         "hu_range": (-150, 2000),     # Soft-tissue tumor + bone window
         "num_samples": 2,             # Number of crops per sample in training
 
-        # Augmentation probabilities
-        "affine_prob": 0.3,           # Random affine transform
-        "noise_prob": 0.3,            # Gaussian noise
-        "blur_prob": 0.2,             # Gaussian smoothing
-        "contrast_prob": 0.3,         # Contrast adjustment
-        "metal_artifact_prob": 0.15,  # Metal artifact simulation
+        # Augmentation probabilities (CT-SAFE defaults)
+        # Conservative values to preserve HU relationships
+        "affine_prob": 0.2,           # Small affine transforms
+        "noise_prob": 0.2,            # Subtle Gaussian noise
+        "metal_artifact_prob": 0.1,   # Metal artifact simulation
 
         # Inference
         "sw_batch_size": 4,           # Sliding window batch size

@@ -1,14 +1,19 @@
 """
 MONAI Transform Pipelines with Physics-Based Preprocessing
 Optimized for jaw tumor detection with proper HU windowing
+
+CT-SAFE augmentation policy:
+- Spatial transforms (flips, rotations, small affine) are safe
+- Intensity transforms must be conservative to preserve HU relationships
+- Avoid gamma/contrast changes that break linear HU scale
+- Noise should be subtle (CT reconstruction already reduces noise)
 """
 
 from monai.transforms import (
     Compose, Orientationd, Spacingd, ScaleIntensityRanged,
     CropForegroundd, RandCropByPosNegLabeld, RandRotate90d,
     RandShiftIntensityd, RandFlipd, RandCoarseDropoutd, EnsureTyped,
-    RandGaussianNoised, RandGaussianSmoothd, RandScaleIntensityd,
-    RandAffined, RandAdjustContrastd
+    RandGaussianNoised, RandAffined
 )
 
 
@@ -67,7 +72,8 @@ def get_transforms(mode="train", config=None):
     ]
 
     if mode == "train":
-        # Training augmentations
+        # Training augmentations - CT-SAFE transforms only
+        # CT data has physical HU meaning, so we avoid transforms that break this
         train_transforms = base_transforms + [
             # Spatial cropping (balanced pos/neg sampling)
             RandCropByPosNegLabeld(
@@ -81,67 +87,50 @@ def get_transforms(mode="train", config=None):
                 image_threshold=0
             ),
 
-            # === SPATIAL AUGMENTATIONS ===
-            # Rotation before flip is standard practice
+            # === SPATIAL AUGMENTATIONS (CT-SAFE) ===
+            # These are safe because anatomy can appear in different orientations
             RandRotate90d(keys=keys, prob=0.5, max_k=3, spatial_axes=(0, 1)),
             RandFlipd(keys=keys, prob=0.5, spatial_axis=0),
             RandFlipd(keys=keys, prob=0.5, spatial_axis=1),
             RandFlipd(keys=keys, prob=0.5, spatial_axis=2),
 
-            # Random affine for more spatial variation (scale, rotation, shear)
+            # Small affine transforms (CT-SAFE: simulates patient positioning variation)
             RandAffined(
                 keys=keys,
-                prob=config.get("affine_prob", 0.3),
-                rotate_range=(0.1, 0.1, 0.1),  # Small rotations in radians
-                scale_range=(0.1, 0.1, 0.1),   # ±10% scaling
+                prob=config.get("affine_prob", 0.2),
+                rotate_range=(0.05, 0.05, 0.05),  # Very small rotations (~3 degrees)
+                scale_range=(0.05, 0.05, 0.05),   # ±5% scaling (anatomical variation)
                 mode=("bilinear", "nearest"),
                 padding_mode="border"
             ),
 
-            # === INTENSITY AUGMENTATIONS ===
-            # Gaussian noise - simulates scanner noise
+            # === INTENSITY AUGMENTATIONS (CT-CONSERVATIVE) ===
+            # Small Gaussian noise - simulates realistic scanner noise
+            # CT noise is typically low after reconstruction
             RandGaussianNoised(
                 keys=["image"],
-                prob=config.get("noise_prob", 0.3),
+                prob=config.get("noise_prob", 0.2),
                 mean=0.0,
-                std=0.05
+                std=0.02  # Reduced from 0.05 - CT noise is subtle
             ),
 
-            # Gaussian smoothing - simulates lower resolution / motion blur
-            RandGaussianSmoothd(
+            # Very mild intensity shift - simulates scanner calibration differences
+            # Keep small to preserve HU relationships
+            RandShiftIntensityd(
                 keys=["image"],
-                prob=config.get("blur_prob", 0.2),
-                sigma_x=(0.5, 1.0),
-                sigma_y=(0.5, 1.0),
-                sigma_z=(0.5, 1.0)
-            ),
-
-            # Contrast adjustment - simulates different scanner settings
-            RandAdjustContrastd(
-                keys=["image"],
-                prob=config.get("contrast_prob", 0.3),
-                gamma=(0.8, 1.2)
-            ),
-
-            # Scale intensity - random brightness adjustment
-            RandScaleIntensityd(
-                keys=["image"],
-                factors=0.15,
+                offsets=0.05,  # Reduced from 0.1
                 prob=0.3
             ),
 
-            # Intensity shift
-            RandShiftIntensityd(keys=["image"], offsets=0.1, prob=0.5),
-
-            # === ARTIFACT SIMULATION ===
+            # === ARTIFACT SIMULATION (CT-REALISTIC) ===
             # Metal artifact simulation (dental fillings/implants)
-            # Creates streak artifacts that can cause false positives
+            # This is realistic - metal creates bright streaks in CT
             RandCoarseDropoutd(
                 keys=["image"],
                 holes=2,
-                spatial_size=(10, 10, 10),
-                fill_value=1.0,  # Bright spots like metal
-                prob=config.get("metal_artifact_prob", 0.15)
+                spatial_size=(8, 8, 8),  # Slightly smaller
+                fill_value=1.0,  # Bright like metal
+                prob=config.get("metal_artifact_prob", 0.1)  # Reduced probability
             ),
         ]
         return Compose(train_transforms)
