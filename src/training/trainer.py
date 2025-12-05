@@ -52,8 +52,12 @@ class Trainer:
             weight_decay=config.get("weight_decay", 1e-5)
         )
 
-        # Mixed precision scaler
-        self.scaler = torch.cuda.amp.GradScaler()
+        # Mixed precision support (only for CUDA)
+        self.use_amp = self.device.type == "cuda"
+        if self.use_amp:
+            self.scaler = torch.amp.GradScaler('cuda')
+        else:
+            self.scaler = None
 
         # Metric: Dice score (exclude background)
         self.dice_metric = DiceMetric(include_background=False, reduction="mean")
@@ -73,22 +77,26 @@ class Trainer:
         Returns:
             Path to best model checkpoint
         """
-        # Data loaders
+        # Data loaders with optimized settings
+        num_workers = self.config.get("workers", 8)
         train_loader = DataLoader(
             train_dataset,
             batch_size=self.config.get("batch_size", 4),
             shuffle=True,
-            num_workers=self.config.get("workers", 8),
+            num_workers=num_workers,
             collate_fn=list_data_collate,
-            pin_memory=True
+            pin_memory=self.device.type == "cuda",
+            prefetch_factor=2 if num_workers > 0 else None,
+            persistent_workers=num_workers > 0
         )
 
         val_loader = DataLoader(
             val_dataset,
             batch_size=1,
             shuffle=False,
-            num_workers=2,
-            collate_fn=list_data_collate
+            num_workers=min(num_workers, 4),  # Use fewer workers for validation
+            collate_fn=list_data_collate,
+            pin_memory=self.device.type == "cuda"
         )
 
         max_epochs = self.config.get("max_epochs", 300)
@@ -118,15 +126,22 @@ class Trainer:
                 # Zero gradients
                 self.optimizer.zero_grad()
 
-                # Mixed precision forward pass
-                with torch.cuda.amp.autocast():
+                if self.use_amp:
+                    # Mixed precision forward pass (CUDA only)
+                    with torch.amp.autocast('cuda'):
+                        outputs = self.model(inputs)
+                        loss = self.loss_function(outputs, labels)
+
+                    # Backward pass with gradient scaling
+                    self.scaler.scale(loss).backward()
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                else:
+                    # Standard forward/backward pass (CPU)
                     outputs = self.model(inputs)
                     loss = self.loss_function(outputs, labels)
-
-                # Backward pass with gradient scaling
-                self.scaler.scale(loss).backward()
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
+                    loss.backward()
+                    self.optimizer.step()
 
                 epoch_loss += loss.item()
                 step += 1
@@ -175,21 +190,23 @@ class Trainer:
                 val_labels = val_data["label"].to(self.device)
 
                 # Sliding window inference with overlap
+                sw_batch_size = self.config.get("sw_batch_size", 4)
                 val_outputs = sliding_window_inference(
                     inputs=val_inputs,
                     roi_size=roi_size,
-                    sw_batch_size=4,
+                    sw_batch_size=sw_batch_size,
                     predictor=self.model,
-                    overlap=0.5
+                    overlap=self.config.get("sw_overlap", 0.5)
                 )
 
                 # Post-processing
+                n_classes = self.config.get("n_classes", 3)
                 val_outputs = [
-                    AsDiscrete(argmax=True, to_onehot=3)(i)
+                    AsDiscrete(argmax=True, to_onehot=n_classes)(i)
                     for i in decollate_batch(val_outputs)
                 ]
                 val_labels = [
-                    AsDiscrete(to_onehot=3)(i)
+                    AsDiscrete(to_onehot=n_classes)(i)
                     for i in decollate_batch(val_labels)
                 ]
 

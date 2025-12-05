@@ -7,6 +7,7 @@ Creates JSON data configuration from directory structure
 import argparse
 import json
 import os
+import random
 from pathlib import Path
 
 
@@ -50,25 +51,31 @@ def find_cases(data_dir, pattern="*.nii.gz"):
     return cases
 
 
-def split_data(cases, train_ratio=0.7, val_ratio=0.15):
+def split_data(cases, train_ratio=0.7, val_ratio=0.15, seed=42):
     """
-    Split cases into train/val/test sets.
+    Split cases into train/val/test sets with shuffling.
 
     Args:
         cases: List of case dictionaries
         train_ratio: Proportion for training (default: 0.7)
         val_ratio: Proportion for validation (default: 0.15)
+        seed: Random seed for reproducibility (default: 42)
 
     Returns:
         Dictionary with train, valid, test keys
     """
-    n_total = len(cases)
+    # Shuffle cases to avoid bias from directory ordering
+    shuffled_cases = cases.copy()
+    random.seed(seed)
+    random.shuffle(shuffled_cases)
+
+    n_total = len(shuffled_cases)
     n_train = int(n_total * train_ratio)
     n_val = int(n_total * val_ratio)
 
-    train = cases[:n_train]
-    valid = cases[n_train:n_train + n_val]
-    test = cases[n_train + n_val:]
+    train = shuffled_cases[:n_train]
+    valid = shuffled_cases[n_train:n_train + n_val]
+    test = shuffled_cases[n_train + n_val:]
 
     return {
         "train": train,
@@ -103,6 +110,12 @@ def main():
         default=0.15,
         help="Validation set ratio (default: 0.15)"
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for reproducible shuffling (default: 42)"
+    )
     args = parser.parse_args()
 
     print(f"Scanning directory: {args.data_dir}")
@@ -120,8 +133,8 @@ def main():
 
     print(f"✓ Found {len(cases)} valid cases")
 
-    # Split data
-    data_dict = split_data(cases, args.train_ratio, args.val_ratio)
+    # Split data (with shuffling for unbiased splits)
+    data_dict = split_data(cases, args.train_ratio, args.val_ratio, args.seed)
 
     print(f"\nData split:")
     print(f"  Training:   {len(data_dict['train'])} cases")

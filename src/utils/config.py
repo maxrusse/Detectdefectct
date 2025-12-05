@@ -29,6 +29,11 @@ def get_default_config():
         # Data Preprocessing
         "spacing": (0.4, 0.4, 0.4),   # High-res isotropic voxels
         "hu_range": (-150, 2000),     # Soft-tissue tumor + bone window
+        "num_samples": 2,             # Number of crops per sample in training
+
+        # Inference
+        "sw_batch_size": 4,           # Sliding window batch size
+        "sw_overlap": 0.5,            # Sliding window overlap
 
         # Model
         "model_name": "swin",         # swin | segresnet | unet
@@ -71,7 +76,9 @@ def save_config(config, output_path):
         config: Configuration dictionary
         output_path: Output file path
     """
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    output_dir = os.path.dirname(output_path)
+    if output_dir:  # Only create directory if path has a directory component
+        os.makedirs(output_dir, exist_ok=True)
 
     with open(output_path, 'w') as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
