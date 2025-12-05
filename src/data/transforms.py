@@ -6,7 +6,9 @@ Optimized for jaw tumor detection with proper HU windowing
 from monai.transforms import (
     Compose, Orientationd, Spacingd, ScaleIntensityRanged,
     CropForegroundd, RandCropByPosNegLabeld, RandRotate90d,
-    RandShiftIntensityd, RandFlipd, RandCoarseDropoutd, EnsureTyped
+    RandShiftIntensityd, RandFlipd, RandCoarseDropoutd, EnsureTyped,
+    RandGaussianNoised, RandGaussianSmoothd, RandScaleIntensityd,
+    RandAffined, RandAdjustContrastd
 )
 
 
@@ -79,25 +81,68 @@ def get_transforms(mode="train", config=None):
                 image_threshold=0
             ),
 
-            # Spatial augmentations (rotation before flip is standard practice)
+            # === SPATIAL AUGMENTATIONS ===
+            # Rotation before flip is standard practice
             RandRotate90d(keys=keys, prob=0.5, max_k=3, spatial_axes=(0, 1)),
             RandFlipd(keys=keys, prob=0.5, spatial_axis=0),
             RandFlipd(keys=keys, prob=0.5, spatial_axis=1),
             RandFlipd(keys=keys, prob=0.5, spatial_axis=2),
 
-            # CRITICAL: Metal artifact simulation
-            # Simulates dental fillings/implants (streak artifacts)
-            # Prevents false positives from metal artifacts
+            # Random affine for more spatial variation (scale, rotation, shear)
+            RandAffined(
+                keys=keys,
+                prob=config.get("affine_prob", 0.3),
+                rotate_range=(0.1, 0.1, 0.1),  # Small rotations in radians
+                scale_range=(0.1, 0.1, 0.1),   # ±10% scaling
+                mode=("bilinear", "nearest"),
+                padding_mode="border"
+            ),
+
+            # === INTENSITY AUGMENTATIONS ===
+            # Gaussian noise - simulates scanner noise
+            RandGaussianNoised(
+                keys=["image"],
+                prob=config.get("noise_prob", 0.3),
+                mean=0.0,
+                std=0.05
+            ),
+
+            # Gaussian smoothing - simulates lower resolution / motion blur
+            RandGaussianSmoothd(
+                keys=["image"],
+                prob=config.get("blur_prob", 0.2),
+                sigma_x=(0.5, 1.0),
+                sigma_y=(0.5, 1.0),
+                sigma_z=(0.5, 1.0)
+            ),
+
+            # Contrast adjustment - simulates different scanner settings
+            RandAdjustContrastd(
+                keys=["image"],
+                prob=config.get("contrast_prob", 0.3),
+                gamma=(0.8, 1.2)
+            ),
+
+            # Scale intensity - random brightness adjustment
+            RandScaleIntensityd(
+                keys=["image"],
+                factors=0.15,
+                prob=0.3
+            ),
+
+            # Intensity shift
+            RandShiftIntensityd(keys=["image"], offsets=0.1, prob=0.5),
+
+            # === ARTIFACT SIMULATION ===
+            # Metal artifact simulation (dental fillings/implants)
+            # Creates streak artifacts that can cause false positives
             RandCoarseDropoutd(
                 keys=["image"],
                 holes=2,
                 spatial_size=(10, 10, 10),
                 fill_value=1.0,  # Bright spots like metal
-                prob=0.15
+                prob=config.get("metal_artifact_prob", 0.15)
             ),
-
-            # Intensity augmentation
-            RandShiftIntensityd(keys=["image"], offsets=0.1, prob=0.5),
         ]
         return Compose(train_transforms)
 

@@ -22,14 +22,36 @@ def get_default_config():
 
         # Training
         "lr": 1e-4,                   # Learning rate
+        "min_lr": 1e-6,               # Minimum LR for cosine annealing
         "weight_decay": 1e-5,         # AdamW regularization
         "max_epochs": 300,
         "val_interval": 5,            # Validate every N epochs
+        "warmup_epochs": 10,          # LR warmup epochs
+        "grad_clip": 1.0,             # Gradient clipping max norm
+
+        # Loss function
+        "loss_type": "dice_ce",       # dice_ce | dice_focal
+        # "class_weights": [1.0, 1.0, 2.0],  # Optional: weight tumor class higher
+        # "focal_weight": 1.0,        # For dice_focal loss
+
+        # Early stopping (set to None to disable)
+        "early_stopping_patience": 50,   # Stop if no improvement for N validations
+        "early_stopping_delta": 0.001,   # Minimum improvement threshold
+
+        # Reproducibility
+        "seed": 42,                   # Random seed for deterministic training
 
         # Data Preprocessing
         "spacing": (0.4, 0.4, 0.4),   # High-res isotropic voxels
         "hu_range": (-150, 2000),     # Soft-tissue tumor + bone window
         "num_samples": 2,             # Number of crops per sample in training
+
+        # Augmentation probabilities
+        "affine_prob": 0.3,           # Random affine transform
+        "noise_prob": 0.3,            # Gaussian noise
+        "blur_prob": 0.2,             # Gaussian smoothing
+        "contrast_prob": 0.3,         # Contrast adjustment
+        "metal_artifact_prob": 0.15,  # Metal artifact simulation
 
         # Inference
         "sw_batch_size": 4,           # Sliding window batch size
