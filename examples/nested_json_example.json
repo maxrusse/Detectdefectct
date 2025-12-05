@@ -1,0 +1,101 @@
+{
+  "json": [
+    [
+      {
+        "Study001": [
+          {
+            "patients_id": "patient_001",
+            "studies_id": "study_001",
+            "StudyID": "study_001",
+            "SubFolder": "case001",
+            "STag": "Tx",
+            "Filename": "base.nii",
+            "absFilePath": "/path/to/data/patient_001/study_001/case001/base.nii"
+          },
+          {
+            "patients_id": "patient_001",
+            "studies_id": "study_001",
+            "StudyID": "study_001",
+            "SubFolder": "case001",
+            "STag": "Tx",
+            "Filename": "mask1.nii.gz",
+            "absFilePath": "/path/to/data/patient_001/study_001/case001/mask1.nii.gz"
+          },
+          {
+            "patients_id": "patient_001",
+            "studies_id": "study_001",
+            "StudyID": "study_001",
+            "SubFolder": "case001",
+            "STag": "Tx",
+            "Filename": "mask2.nii.gz",
+            "absFilePath": "/path/to/data/patient_001/study_001/case001/mask2.nii.gz"
+          }
+        ]
+      },
+      {
+        "Study002": [
+          {
+            "patients_id": "patient_002",
+            "studies_id": "study_002",
+            "StudyID": "study_002",
+            "SubFolder": "case002",
+            "STag": "Ty",
+            "Filename": "base.nii",
+            "absFilePath": "/path/to/data/patient_002/study_002/case002/base.nii"
+          },
+          {
+            "patients_id": "patient_002",
+            "studies_id": "study_002",
+            "StudyID": "study_002",
+            "SubFolder": "case002",
+            "STag": "Ty",
+            "Filename": "mask1.nii.gz",
+            "absFilePath": "/path/to/data/patient_002/study_002/case002/mask1.nii.gz"
+          },
+          {
+            "patients_id": "patient_002",
+            "studies_id": "study_002",
+            "StudyID": "study_002",
+            "SubFolder": "case002",
+            "STag": "Ty",
+            "Filename": "mask2.nii.gz",
+            "absFilePath": "/path/to/data/patient_002/study_002/case002/mask2.nii.gz"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "Study003": [
+          {
+            "patients_id": "patient_003",
+            "studies_id": "study_003",
+            "StudyID": "study_003",
+            "SubFolder": "case003",
+            "STag": "Tz",
+            "Filename": "base.nii",
+            "absFilePath": "/path/to/data/patient_003/study_003/case003/base.nii"
+          },
+          {
+            "patients_id": "patient_003",
+            "studies_id": "study_003",
+            "StudyID": "study_003",
+            "SubFolder": "case003",
+            "STag": "Tz",
+            "Filename": "mask1.nii.gz",
+            "absFilePath": "/path/to/data/patient_003/study_003/case003/mask1.nii.gz"
+          },
+          {
+            "patients_id": "patient_003",
+            "studies_id": "study_003",
+            "StudyID": "study_003",
+            "SubFolder": "case003",
+            "STag": "Tz",
+            "Filename": "mask2.nii.gz",
+            "absFilePath": "/path/to/data/patient_003/study_003/case003/mask2.nii.gz"
+          }
+        ]
+      }
+    ]
+  ]
+}

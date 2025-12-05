@@ -128,6 +128,34 @@ python -c "import torch; print(f'GPU: {torch.cuda.get_device_name(0) if torch.cu
 
 ---
 
+## Data Preparation Options
+
+This system supports **two data input methods**:
+
+### Option 1: Custom Nested JSON (For Existing Data Structures)
+
+If you have a **nested JSON structure** with STag-based splits (`Tx`/`Ty`/`Tz`), use our custom parser:
+
+```bash
+python scripts/parse_nested_json.py \
+    --input your_nested_data.json \
+    --output data_config.json
+```
+
+This handles complex nested structures and automatically:
+- Flattens nested JSON hierarchy
+- Groups files by patient/study/case
+- Splits data based on STag values (`Tx`→train, `Ty`→valid, `Tz`→test)
+- Creates pipeline-compatible configuration
+
+**📖 Full guide:** See [docs/CUSTOM_DATA_LOADING.md](docs/CUSTOM_DATA_LOADING.md)
+
+### Option 2: Standard Directory Structure
+
+For standard directory organization, use the basic data preparation script.
+
+---
+
 ## Quick Start
 
 ### 1. Prepare Your Data
