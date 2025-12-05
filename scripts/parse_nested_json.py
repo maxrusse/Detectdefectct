@@ -85,21 +85,19 @@ def group_files_by_case(records, base_filename="base.nii",
         mask2_filename: Name of second mask (tumor)
 
     Returns:
-        Dictionary of grouped files by case key
+        Dictionary of grouped files by case key, and case splits
     """
     groups = defaultdict(dict)
+    case_splits = defaultdict(set)  # Track all splits seen for each case
 
     for r in records:
         split = split_from_stag(r.get("STag"))
-        if split is None:
-            continue
 
-        # Create unique key for this case
+        # Create unique key for this case (WITHOUT split to group all files together)
         key = (
             r.get("patients_id"),
             r.get("studies_id") or r.get("StudyID"),
             r.get("SubFolder"),
-            split,
         )
 
         fname = r.get("Filename")
@@ -107,16 +105,30 @@ def group_files_by_case(records, base_filename="base.nii",
 
         if fname and path:
             groups[key][fname] = path
+            if split:
+                case_splits[key].add(split)
 
-    return groups, (base_filename, mask1_filename, mask2_filename)
+    # Determine final split for each case using priority: test > valid > train
+    final_splits = {}
+    for key, splits in case_splits.items():
+        if "test" in splits:
+            final_splits[key] = "test"
+        elif "valid" in splits:
+            final_splits[key] = "valid"
+        elif "train" in splits:
+            final_splits[key] = "train"
+        # If no valid split found, case will be skipped
+
+    return groups, final_splits, (base_filename, mask1_filename, mask2_filename)
 
 
-def build_samples(groups, filenames):
+def build_samples(groups, case_splits, filenames):
     """
     Build train/valid/test samples from grouped files.
 
     Args:
-        groups: Dictionary of grouped files
+        groups: Dictionary of grouped files by case key
+        case_splits: Dictionary mapping case key to split assignment
         filenames: Tuple of (base, mask1, mask2) filenames
 
     Returns:
@@ -126,10 +138,17 @@ def build_samples(groups, filenames):
 
     out = {"train": [], "valid": [], "test": []}
 
-    skipped = {"train": 0, "valid": 0, "test": 0}
+    skipped = {"train": 0, "valid": 0, "test": 0, "no_split": 0}
 
     for key, files in groups.items():
-        pid, sid, subf, split = key
+        pid, sid, subf = key
+
+        # Get the split for this case
+        split = case_splits.get(key)
+        if split is None:
+            skipped["no_split"] += 1
+            print(f"⚠ Skipping case {pid}/{sid}/{subf}: no valid STag found")
+            continue
 
         # Check if all required files exist
         if BASE in files and M1 in files and M2 in files:
@@ -219,7 +238,7 @@ def main():
 
     # Group by case
     print("\nGrouping files by case...")
-    groups, filenames = group_files_by_case(
+    groups, case_splits, filenames = group_files_by_case(
         records,
         args.base_filename,
         args.mask1_filename,
@@ -229,7 +248,7 @@ def main():
 
     # Build samples
     print("\nBuilding train/valid/test samples...")
-    samples, skipped = build_samples(groups, filenames)
+    samples, skipped = build_samples(groups, case_splits, filenames)
 
     # Print statistics
     print("\n" + "="*60)
@@ -240,11 +259,17 @@ def main():
     print(f"  Test:       {len(samples['test']):4d} cases")
     print(f"  Total:      {len(samples['train']) + len(samples['valid']) + len(samples['test']):4d} cases")
 
-    if sum(skipped.values()) > 0:
-        print("\nSkipped (incomplete):")
-        print(f"  Training:   {skipped['train']} cases")
-        print(f"  Validation: {skipped['valid']} cases")
-        print(f"  Test:       {skipped['test']} cases")
+    total_skipped = sum(skipped.values())
+    if total_skipped > 0:
+        print(f"\nSkipped ({total_skipped} total):")
+        if skipped['train'] > 0:
+            print(f"  Training (incomplete):   {skipped['train']} cases")
+        if skipped['valid'] > 0:
+            print(f"  Validation (incomplete): {skipped['valid']} cases")
+        if skipped['test'] > 0:
+            print(f"  Test (incomplete):       {skipped['test']} cases")
+        if skipped['no_split'] > 0:
+            print(f"  No valid STag:           {skipped['no_split']} cases")
 
     # Validate splits
     if len(samples['train']) == 0:

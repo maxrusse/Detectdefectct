@@ -60,12 +60,13 @@ class Predictor:
             input_tensor = input_data.to(self.device)
 
             # Sliding window inference
+            sw_batch_size = self.config.get("sw_batch_size", 4)
             output = sliding_window_inference(
                 inputs=input_tensor,
                 roi_size=roi_size,
-                sw_batch_size=4,
+                sw_batch_size=sw_batch_size,
                 predictor=self.model,
-                overlap=0.5
+                overlap=self.config.get("sw_overlap", 0.5)
             )
 
             if return_prob:
@@ -106,21 +107,23 @@ class Predictor:
                 test_labels = test_data["label"].to(self.device)
 
                 # Sliding window inference
+                sw_batch_size = self.config.get("sw_batch_size", 4)
                 test_outputs = sliding_window_inference(
                     inputs=test_inputs,
                     roi_size=roi_size,
-                    sw_batch_size=4,
+                    sw_batch_size=sw_batch_size,
                     predictor=self.model,
-                    overlap=0.5
+                    overlap=self.config.get("sw_overlap", 0.5)
                 )
 
                 # Post-processing
+                n_classes = self.config.get("n_classes", 3)
                 test_outputs = [
-                    AsDiscrete(argmax=True, to_onehot=3)(i)
+                    AsDiscrete(argmax=True, to_onehot=n_classes)(i)
                     for i in decollate_batch(test_outputs)
                 ]
                 test_labels = [
-                    AsDiscrete(to_onehot=3)(i)
+                    AsDiscrete(to_onehot=n_classes)(i)
                     for i in decollate_batch(test_labels)
                 ]
 
