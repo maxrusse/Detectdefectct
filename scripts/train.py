@@ -44,6 +44,18 @@ def parse_args():
         default=None,
         help="Output directory (overrides config)"
     )
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help="Path to checkpoint to resume training from"
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for reproducible training (overrides config)"
+    )
     return parser.parse_args()
 
 
@@ -81,6 +93,8 @@ def main():
         config['model_name'] = args.model
     if args.output:
         config['output_dir'] = args.output
+    if args.seed is not None:
+        config['seed'] = args.seed
 
     # Load data configuration
     data_dict = load_data_config(args.data)
@@ -106,6 +120,11 @@ def main():
 
     # Create trainer
     trainer = Trainer(model, config, output_dir=config['output_dir'])
+
+    # Resume from checkpoint if provided
+    if args.resume:
+        print(f"\nResuming from checkpoint: {args.resume}")
+        trainer.load_checkpoint(args.resume)
 
     # Run training
     print("\nStarting training...")
