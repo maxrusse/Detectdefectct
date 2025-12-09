@@ -13,7 +13,7 @@ from monai.transforms import (
     Compose, Orientationd, Spacingd, ScaleIntensityRanged,
     CropForegroundd, RandCropByPosNegLabeld, RandRotate90d,
     RandShiftIntensityd, RandFlipd, RandCoarseDropoutd, EnsureTyped,
-    RandGaussianNoised, RandAffined
+    RandGaussianNoised, RandAffined, SpatialPadd
 )
 
 
@@ -69,6 +69,11 @@ def get_transforms(mode="train", config=None):
 
         # Remove background air
         CropForegroundd(keys=keys, source_key="image"),
+
+        # CRITICAL: Ensure minimum size for cropping
+        # Pad if image is smaller than roi_size in any dimension
+        # This handles cropped images that may be smaller than the model's input size
+        SpatialPadd(keys=keys, spatial_size=config["roi_size"], method="symmetric"),
     ]
 
     if mode == "train":
