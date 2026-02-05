@@ -64,6 +64,11 @@ def split_data(cases, train_ratio=0.7, val_ratio=0.15, seed=42):
     Returns:
         Dictionary with train, valid, test keys
     """
+    if train_ratio < 0 or val_ratio < 0:
+        raise ValueError("train_ratio and val_ratio must be non-negative")
+    if train_ratio + val_ratio >= 1.0:
+        raise ValueError("train_ratio + val_ratio must be less than 1.0")
+
     # Shuffle cases to avoid bias from directory ordering
     shuffled_cases = cases.copy()
     random.seed(seed)
@@ -140,6 +145,13 @@ def main():
     print(f"  Training:   {len(data_dict['train'])} cases")
     print(f"  Validation: {len(data_dict['valid'])} cases")
     print(f"  Test:       {len(data_dict['test'])} cases")
+
+    if len(data_dict['train']) == 0:
+        print("⚠ Training split is empty. Adjust ratios or add more cases.")
+    if len(data_dict['valid']) == 0:
+        print("⚠ Validation split is empty. Consider lowering train_ratio or adding cases.")
+    if len(data_dict['test']) == 0:
+        print("⚠ Test split is empty. Consider lowering train_ratio/val_ratio or adding cases.")
 
     # Save JSON
     with open(args.output, 'w') as f:

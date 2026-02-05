@@ -95,10 +95,15 @@ def main():
         n_classes=config['n_classes'],
         roi_size=tuple(config['roi_size'])
     )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load trained weights
     print(f"Loading weights from {args.model}")
-    model.load_state_dict(torch.load(args.model))
+    checkpoint = torch.load(args.model, map_location=device)
+    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["model_state_dict"])
+    else:
+        model.load_state_dict(checkpoint)
 
     # Create predictor
     predictor = Predictor(model, config)

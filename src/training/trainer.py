@@ -37,7 +37,10 @@ class CosineWarmupScheduler:
         self.base_lr = optimizer.param_groups[0]['lr']
 
     def step(self, epoch):
-        if epoch < self.warmup_epochs:
+        if self.max_epochs <= self.warmup_epochs:
+            # Degenerate case: warmup spans all epochs
+            lr = self.base_lr * (epoch + 1) / max(self.warmup_epochs, 1)
+        elif epoch < self.warmup_epochs:
             # Linear warmup
             lr = self.base_lr * (epoch + 1) / self.warmup_epochs
         else:
@@ -221,14 +224,18 @@ class Trainer:
             persistent_workers=num_workers > 0
         )
 
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=1,
-            shuffle=False,
-            num_workers=min(num_workers, 4),
-            collate_fn=list_data_collate,
-            pin_memory=self.device.type == "cuda"
-        )
+        val_loader = None
+        if len(val_dataset) > 0:
+            val_loader = DataLoader(
+                val_dataset,
+                batch_size=1,
+                shuffle=False,
+                num_workers=min(num_workers, 4),
+                collate_fn=list_data_collate,
+                pin_memory=self.device.type == "cuda"
+            )
+        else:
+            print("⚠ Validation dataset is empty. Validation will be skipped.")
 
         max_epochs = self.config.get("max_epochs", 300)
         val_interval = self.config.get("val_interval", 5)
@@ -315,7 +322,7 @@ class Trainer:
             print(f"Epoch {epoch+1} Average Loss: {avg_loss:.4f}")
 
             # Validation phase
-            if (epoch + 1) % val_interval == 0:
+            if (epoch + 1) % val_interval == 0 and val_loader is not None:
                 val_dice, per_class_dice = self._validate(val_loader)
                 print(f"Validation Dice: {val_dice:.4f} (Bone: {per_class_dice[0]:.4f}, Tumor: {per_class_dice[1]:.4f})")
 
@@ -351,11 +358,16 @@ class Trainer:
         Returns:
             Tuple of (mean_dice, per_class_dice)
         """
+        if val_loader is None:
+            raise ValueError("Validation loader is None. Cannot run validation.")
+
         self.model.eval()
         roi_size = self.config.get("roi_size", (128, 128, 128))
 
         with torch.no_grad():
+            has_samples = False
             for val_data in val_loader:
+                has_samples = True
                 val_inputs = val_data["image"].to(self.device)
                 val_labels = val_data["label"].to(self.device)
 
@@ -383,6 +395,9 @@ class Trainer:
                 # Compute metrics
                 self.dice_metric(y_pred=val_outputs, y=val_labels)
                 self.dice_metric_batch(y_pred=val_outputs, y=val_labels)
+
+        if not has_samples:
+            raise ValueError("Validation loader produced no samples.")
 
         # Aggregate and reset
         mean_dice = self.dice_metric.aggregate().item()
